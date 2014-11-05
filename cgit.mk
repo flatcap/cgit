@@ -76,6 +76,7 @@ CGIT_OBJ_NAMES += scan-tree.o
 CGIT_OBJ_NAMES += shared.o
 CGIT_OBJ_NAMES += ui-atom.o
 CGIT_OBJ_NAMES += ui-blob.o
+CGIT_OBJ_NAMES += ui-calendar.o
 CGIT_OBJ_NAMES += ui-clone.o
 CGIT_OBJ_NAMES += ui-commit.o
 CGIT_OBJ_NAMES += ui-diff.o

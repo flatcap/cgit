@@ -446,6 +446,12 @@ void cgit_stats_link(const char *name, const char *title, const char *class,
 	reporevlink("stats", name, title, class, head, NULL, path);
 }
 
+void cgit_calendar_link(const char *name, const char *title, const char *class,
+		       const char *head)
+{
+	reporevlink("calendar", name, title, class, head, NULL, NULL);
+}
+
 static void cgit_self_link(char *name, const char *title, const char *class)
 {
 	if (!strcmp(ctx.qry.page, "repolist"))
@@ -493,6 +499,8 @@ static void cgit_self_link(char *name, const char *title, const char *class)
 	else if (!strcmp(ctx.qry.page, "stats"))
 		cgit_stats_link(name, title, class, ctx.qry.head,
 				ctx.qry.path);
+	else if (!strcmp(ctx.qry.page, "calendar"))
+		cgit_calendar_link(name, title, class, ctx.qry.head);
 	else {
 		/* Don't known how to make link for this page */
 		repolink(title, class, ctx.qry.page, ctx.qry.head, ctx.qry.path);
@@ -947,6 +955,8 @@ void cgit_print_pageheader(void)
 		if (ctx.repo->max_stats)
 			cgit_stats_link("stats", NULL, hc("stats"),
 					ctx.qry.head, ctx.qry.vpath);
+		cgit_calendar_link("calendar", NULL, hc("calendar"),
+				   ctx.qry.head);
 		html("</td><td class='form'>");
 		html("<form class='right' method='get' action='");
 		if (ctx.cfg.virtual_root)
