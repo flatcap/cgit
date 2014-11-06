@@ -499,7 +499,7 @@ static void cgit_self_link(char *name, const char *title, const char *class)
 	else if (!strcmp(ctx.qry.page, "stats"))
 		cgit_stats_link(name, title, class, ctx.qry.head,
 				ctx.qry.path);
-	else if (!strcmp(ctx.qry.page, "calendar"))
+	else if (!strcmp(ctx.qry.page, "calendar") && (ctx.repo->enable_calendar))
 		cgit_calendar_link(name, title, class, ctx.qry.head);
 	else {
 		/* Don't known how to make link for this page */
