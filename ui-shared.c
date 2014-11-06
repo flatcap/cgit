@@ -955,8 +955,9 @@ void cgit_print_pageheader(void)
 		if (ctx.repo->max_stats)
 			cgit_stats_link("stats", NULL, hc("stats"),
 					ctx.qry.head, ctx.qry.vpath);
-		cgit_calendar_link("calendar", NULL, hc("calendar"),
-				   ctx.qry.head);
+		if (ctx.repo->enable_calendar)
+			cgit_calendar_link("calendar", NULL, hc("calendar"),
+					  ctx.qry.head);
 		html("</td><td class='form'>");
 		html("<form class='right' method='get' action='");
 		if (ctx.cfg.virtual_root)
