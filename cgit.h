@@ -91,6 +91,7 @@ struct cgit_repo {
 	char *logo;
 	char *logo_link;
 	int snapshots;
+	int enable_calendar;
 	int enable_commit_graph;
 	int enable_log_filecount;
 	int enable_log_linecount;
@@ -224,6 +225,7 @@ struct cgit_config {
 	int enable_http_clone;
 	int enable_index_links;
 	int enable_index_owner;
+	int enable_calendar;
 	int enable_commit_graph;
 	int enable_log_filecount;
 	int enable_log_linecount;
