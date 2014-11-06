@@ -304,7 +304,9 @@ void cgit_print_repolist(void)
 		      !sorted && section ? "sublevel-repo" : "toplevel-repo");
 		cgit_summary_link(ctx.repo->name, ctx.repo->name, NULL, NULL);
 		html("</td><td>");
-		html_link_open(cgit_repourl(ctx.repo->url), NULL, NULL);
+		char *url = cgit_repourl(ctx.repo->url);
+		html_link_open(url, NULL, NULL);
+		free (url);
 		html_ntxt(ctx.cfg.max_repodesc_len, ctx.repo->desc);
 		html_link_close();
 		html("</td><td>");
