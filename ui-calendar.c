@@ -42,12 +42,14 @@ void calc_quartiles (int array[], int members, int *quartiles)
 		quartiles[0] = 1;
 		quartiles[1] = 1;
 		quartiles[2] = 1;
+		quartiles[3] = 1;
 	} else {
 		int section = (members - skip) / 4;
 
 		quartiles[0] = copy[skip+(1*section)];
 		quartiles[1] = copy[skip+(2*section)];
 		quartiles[2] = copy[skip+(3*section)];
+		quartiles[3] = copy[members-1];
 	}
 }
 
@@ -68,7 +70,7 @@ void cgit_show_calendar(void)
 	// html("  58: Days ( Feb 25 2014 - Apr 23 2014 ) - Longest streak including weekends\n");
 	// html("   0: Days - Current streak\n");
 
-	html("<br><br>");
+	// html("<br><br>");
 
 	struct rev_info rev;
 	struct commit *commit;
@@ -94,13 +96,18 @@ void cgit_show_calendar(void)
 	prepare_revision_walk(&rev);
 	time_t now = 0;
 	time(&now);
-	int cc[54*7];
+	int cc[53*7];
 	memset (cc, 0, sizeof (cc));
 	int total = 0;
 	while ((commit = get_revision(&rev)) != NULL) {
+		// fprintf (stderr, "sha: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n", commit->object.sha1[0], commit->object.sha1[1], commit->object.sha1[2], commit->object.sha1[3], commit->object.sha1[4], commit->object.sha1[5], commit->object.sha1[6], commit->object.sha1[7], commit->object.sha1[8], commit->object.sha1[9], commit->object.sha1[10], commit->object.sha1[11], commit->object.sha1[12], commit->object.sha1[13], commit->object.sha1[14], commit->object.sha1[15], commit->object.sha1[16], commit->object.sha1[17], commit->object.sha1[18], commit->object.sha1[19]);
 		info = cgit_parse_commit(commit);
-		int day = (now - commit->date)/ 86400;
-		cc[day+4]++;
+		// fprintf (stderr, "a date: %ld\n", info->author_date);
+		// fprintf (stderr, "c date: %ld\n", info->committer_date);
+		// fprintf (stderr, "subject: %s\n", info->subject);
+		// fprintf (stderr, "msg: %s\n", info->msg);
+		int day = (now - info->author_date)/ 86400;
+		cc[day]++;
 		total++;
 		free_commit_buffer(commit);
 		free_commit_list(commit->parents);
@@ -108,7 +115,7 @@ void cgit_show_calendar(void)
 		cgit_free_commitinfo(info);
 	}
 
-	int q[3];
+	int q[4];
 	calc_quartiles (cc, sizeof(cc)/sizeof(int), q);
 
 	// int OFF = 7;
@@ -148,8 +155,6 @@ void cgit_show_calendar(void)
 	// 	html("<br>\n");
 	// }
 	// html("</div>");
-
-	// htmlf("<br>%d: Total commits<br><br>", total);
 
 	// htmlf("now = %ld<br>", now);
 
@@ -193,7 +198,7 @@ void cgit_show_calendar(void)
 	html("<div class=\"calendar\">");
 
 	html("<div class=\"month\">\n");
-	html("<h1>&nbsp;</h1><b>S</b><br><b>M</b><br><b>T</b><br><b>W</b><br><b>T</b><br><b>F</b><br><b>S</b>\n");
+	html("<h1>&nbsp;</h1><span>S</span><br><span>M</span><br><span>T</span><br><span>W</span><br><span>T</span><br><span>F</span><br><span>S</span>\n");
 	html("</div>\n");
 
 	int total_offset = 0;
@@ -218,6 +223,10 @@ void cgit_show_calendar(void)
 		int first_day = work_month.tm_wday;
 		int month_length = (next_time-work_time)/86400;
 
+		if ((work_month.tm_mon == this_month.tm_mon) && (work_month.tm_year == this_month.tm_year)) {
+			month_length = this_month.tm_mday;
+		}
+
 		int start = -first_day;
 		int end   = month_length - start;
 
@@ -236,18 +245,26 @@ void cgit_show_calendar(void)
 				int j = 1+start + (col*7) + row;
 				// htmlf ("%d, ", j);
 				int count = cc[371-(j+total_offset)];
-				if ((j < 1) || (j > month_length))
-					htmlf("<span class='c0'>%s</span>", space);
-				else if (count > q[2])
-					htmlf("<span class='c4'>%s</span>", square);
-				else if (count > q[1])
-					htmlf("<span class='c3'>%s</span>", square);
-				else if (count > q[0])
-					htmlf("<span class='c2'>%s</span>", square);
-				else if (count > 0)
-					htmlf("<span class='c1'>%s</span>", square);
-				else
-					htmlf("<span class='c0'>%s</span>", square);
+				const char *class;
+				const char *shape = square;
+				if ((j < 1) || (j > month_length)) {
+					class = "c0";
+					shape = space;
+				} else if (count > q[2]) {
+					class = "c4";
+				} else if (count > q[1]) {
+					class = "c3";
+				} else if (count > q[0]) {
+					class = "c2";
+				} else if (count > 0) {
+					class = "c1";
+				} else {
+					class = "c0";
+				}
+
+				htmlf("<a href='%s'>", "?id=5092128072e6dd21f8d9f25ceed2187167c1992a");
+				htmlf("<span title=\"%d %s %d\n%d commit%s\" class='%s'>%s</span>", j, months[(month_start+i)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", class, shape);
+				html("</a>");
 			}
 			html("<br>");
 		}
@@ -274,6 +291,20 @@ void cgit_show_calendar(void)
 		html("</div>\n");
 
 	}
+
+	html("<div class=\"key\">\n");
+	html("<br>Commits:<br>");
+	htmlf("<span class='c0'>%s</span> 0<br>",       square);
+	htmlf("<span class='c1'>%s</span> %d - %d<br>", square, 1, q[0]);
+	htmlf("<span class='c2'>%s</span> %d - %d<br>", square, q[0]+1, q[1]);
+	htmlf("<span class='c3'>%s</span> %d - %d<br>", square, q[1]+1, q[2]);
+	htmlf("<span class='c4'>%s</span> %d - %d<br>", square, q[2]+1, q[3]);
+	html("</div>\n");
+
+	htmlf("<br>%d: Total commits<br><br>", total);
+
+	cgit_commit_link("label", "tooltip", "class", "branch", "5092128072e6dd21f8d9f25ceed2187167c1992a", ctx.qry.vpath, 0);
+
 
 	html("</div>");
 }
