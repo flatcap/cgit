@@ -51,6 +51,14 @@ void calc_quartiles (int array[], int members, int *quartiles)
 	}
 }
 
+void calc_streaks (int array[], int members, int *we, int* wd, int *cur)
+{
+	// need to know: day of week, month and year
+	*we  = 0;
+	*wd  = 0;
+	*cur = 0;
+}
+
 void cgit_show_calendar(void)
 {
 	//html("<pre>");
@@ -103,42 +111,170 @@ void cgit_show_calendar(void)
 	int q[3];
 	calc_quartiles (cc, sizeof(cc)/sizeof(int), q);
 
-	int OFF = 7;
+	// int OFF = 7;
 	// htmlf("q: %d, %d, %d<br>", q[0], q[1], q[2]);
 
 	// int k;
 	// for (k = 0; k < 371; k++) {
-	// 	htmlf ("day %d, count %d<br>", k, cc[k]);
+	// 	//htmlf ("day %d, count %d<br>", k, cc[k]);
+	// 	fprintf (stderr, "day %d, count %d\n", k, cc[k]);
 	// }
 
-	html("<div class=\"calendar\">");
-	//html("<div class=\"justify\">Nov Dec Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov</div>");
-	int dow, woy;	// day-of-week, week-of-year
-	for (dow = 0; dow < 7; dow++) {
-		for (woy = 0; woy < 54; woy++) {
-			int index = (54*7)-((7*woy)+dow);
-			int count = cc[index];
-			if ((index < OFF) || (index > (53*7+OFF)))
-				html("<span class='c5'>&#9632 ");
-			else if (count > q[2])
-				html("<span class='c4'>&#9632 ");
-			else if (count > q[1])
-				html("<span class='c3'>&#9632 ");
-			else if (count > q[0])
-				html("<span class='c2'>&#9632 ");
-			else if (count > 0)
-				html("<span class='c1'>&#9632 ");
-			else
-				html("<span class='c0'>&#9632 ");
-			html("</span>");
-		}
-		html("<br>\n");
-	}
-	html("</div>");
+	const char *square = "&#9632";
+	const char *space  = "&nbsp;";
 
-	htmlf("<br>%d: Total commits", total);
+	// html("<span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span>");
+	// html("<br>");
+	// html("<div class=\"calendar\">");
+	// int dow, woy;	// day-of-week, week-of-year
+	// for (dow = 0; dow < 7; dow++) {
+	// 	for (woy = 0; woy < 54; woy++) {
+	// 		int index = (54*7)-((7*woy)+dow);
+	// 		int count = cc[index];
+	// 		if ((index < OFF) || (index > (53*7+OFF)))
+	// 			htmlf("<span class='c5'>%s", square);
+	// 		else if (count > q[2])
+	// 			htmlf("<span class='c4'>%s", square);
+	// 		else if (count > q[1])
+	// 			htmlf("<span class='c3'>%s", square);
+	// 		else if (count > q[0])
+	// 			htmlf("<span class='c2'>%s", square);
+	// 		else if (count > 0)
+	// 			htmlf("<span class='c1'>%s", square);
+	// 		else
+	// 			htmlf("<span class='c0'>%s", square);
+	// 		html("</span>");
+	// 	}
+	// 	html("<br>\n");
+	// }
+	// html("</div>");
+
+	// htmlf("<br>%d: Total commits<br><br>", total);
+
+	// htmlf("now = %ld<br>", now);
 
 	//html("</pre>");
 	// html("</div>");
+
+	static const char *months[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	};
+
+	// static const char *days[] = {
+	// 	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+	// };
+
+	struct tm this_month;
+	gmtime_r(&now, &this_month);
+
+	struct tm work_month;
+	struct tm next_month;
+
+	int month_start = this_month.tm_mon;
+
+	// fprintf (stderr, "tm_sec   = %d\n", this_month.tm_sec);
+	// fprintf (stderr, "tm_min   = %d\n", this_month.tm_min);
+	// fprintf (stderr, "tm_hour  = %d\n", this_montthis_monthtm_hour);
+	// fprintf (stderr, "tm_mday  = %d\n", this_month.tm_mday);
+	// fprintf (stderr, "tm_mon   = %d\n", this_montthis_monthtm_mon);
+	// fprintf (stderr, "tm_year  = %d\n", this_month.tm_year);
+	// fprintf (stderr, "tm_wday  = %d\n", this_month.tm_wday);
+	// fprintf (stderr, "tm_yday  = %d\n", this_month.tm_yday);
+	// fprintf (stderr, "tm_isdst = %d\n", this_month.tm_isdst);
+
+	next_month = this_month;
+	next_month.tm_mday = 1;
+	next_month.tm_year--;
+
+	time_t next_time = timegm (&next_month);
+	gmtime_r (&next_time, &next_month);
+
+	html("<div class=\"calendar\">");
+
+	html("<div class=\"month\">\n");
+	html("<h1>&nbsp;</h1><b>S</b><br><b>M</b><br><b>T</b><br><b>W</b><br><b>T</b><br><b>F</b><br><b>S</b>\n");
+	html("</div>\n");
+
+	int total_offset = 0;
+
+	int i;
+	time_t work_time;
+	for (i = 0; i < 13; i++) {
+		html("<div class=\"month\">\n");
+		htmlf("<h1>%s</h1>\n", months[(month_start+i)%12]);
+
+		work_month = next_month;
+		work_time  = next_time;
+		next_month.tm_mon++;
+		if (next_month.tm_mon > 11) {
+			next_month.tm_year++;
+			next_month.tm_mon = 0;
+		}
+
+		next_time = timegm (&next_month);
+		gmtime_r (&next_time, &next_month);
+
+		int first_day = work_month.tm_wday;
+		int month_length = (next_time-work_time)/86400;
+
+		int start = -first_day;
+		int end   = month_length - start;
+
+		int old_end = end;
+		end = (((end + 6) / 7) * 7);
+
+		int cols = end / 7;
+
+		if (end == old_end)
+			cols++;
+
+		int row;
+		for (row = 0; row < 7; row++) {
+			int col;
+			for (col = 0; col < cols; col++) {
+				int j = 1+start + (col*7) + row;
+				// htmlf ("%d, ", j);
+				int count = cc[371-(j+total_offset)];
+				if ((j < 1) || (j > month_length))
+					htmlf("<span class='c0'>%s</span>", space);
+				else if (count > q[2])
+					htmlf("<span class='c4'>%s</span>", square);
+				else if (count > q[1])
+					htmlf("<span class='c3'>%s</span>", square);
+				else if (count > q[0])
+					htmlf("<span class='c2'>%s</span>", square);
+				else if (count > 0)
+					htmlf("<span class='c1'>%s</span>", square);
+				else
+					htmlf("<span class='c0'>%s</span>", square);
+			}
+			html("<br>");
+		}
+		// htmlf ("off = %d", total_offset);
+		total_offset += month_length;
+
+
+		// int j;
+		// for (j = start; j < end; j++) {
+		// 	if ((j < 0) || (j >= month_length))
+		// 		htmlf("<span class='c0'>%s</span>", square);
+		// 	else
+		// 		htmlf("<span class='c4'>%s</span>", square);
+		// }
+
+		// htmlf ("%s<br>", days[first_day]);
+		// htmlf ("start %d<br>", start);
+		// htmlf ("month %d<br>", month_length);
+		// htmlf ("end %d<br>", end);
+		// htmlf ("cols %d<br>", cols);
+		// html  ("<br>");
+		// htmlf ("range %d<br>", end-start+1);
+
+		html("</div>\n");
+
+	}
+
+	html("</div>");
 }
 
