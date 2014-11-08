@@ -245,26 +245,33 @@ void cgit_show_calendar(void)
 				int j = 1+start + (col*7) + row;
 				// htmlf ("%d, ", j);
 				int count = cc[371-(j+total_offset)];
-				const char *class;
+				int class;
 				const char *shape = square;
 				if ((j < 1) || (j > month_length)) {
-					class = "c0";
+					class = 0;
 					shape = space;
 				} else if (count > q[2]) {
-					class = "c4";
+					class = 4;
 				} else if (count > q[1]) {
-					class = "c3";
+					class = 3;
 				} else if (count > q[0]) {
-					class = "c2";
+					class = 2;
 				} else if (count > 0) {
-					class = "c1";
+					class = 1;
 				} else {
-					class = "c0";
+					class = 0;
 				}
 
-				htmlf("<a href='%s'>", "?id=5092128072e6dd21f8d9f25ceed2187167c1992a");
-				htmlf("<span title=\"%d %s %d\n%d commit%s\" class='%s'>%s</span>", j, months[(month_start+i)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", class, shape);
-				html("</a>");
+				// char title[128];
+				// snprintf (title, sizeof (title), "%d %s %d\n%d commit%s", j, months[(month_start+i)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "");
+				// char *sha = "5092128072e6dd21f8d9f25ceed2187167c1992a";
+
+				// htmlf ("<span class='%s'>", class);
+				// cgit_commit_link("X", title, NULL, ctx.qry.head, sha, ctx.qry.path, 0);
+				// html ("</span>");
+
+				htmlf("<span title=\"%d %s %d\n%d commit%s\" class='c%d'>%s</span>", j, months[(month_start+i)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", class, shape);
+				//html("</a>");
 			}
 			html("<br>");
 		}
@@ -293,18 +300,17 @@ void cgit_show_calendar(void)
 	}
 
 	html("<div class=\"key\">\n");
-	html("<br>Commits:<br>");
+	html("Commits:<br>");
 	htmlf("<span class='c0'>%s</span> 0<br>",       square);
-	htmlf("<span class='c1'>%s</span> %d - %d<br>", square, 1, q[0]);
+	htmlf("<span class='c1'>%s</span> %d - %d<br>", square,      1, q[0]);
 	htmlf("<span class='c2'>%s</span> %d - %d<br>", square, q[0]+1, q[1]);
 	htmlf("<span class='c3'>%s</span> %d - %d<br>", square, q[1]+1, q[2]);
-	htmlf("<span class='c4'>%s</span> %d - %d<br>", square, q[2]+1, q[3]);
+	htmlf("<span class='c4'>%s</span> %d - %d",     square, q[2]+1, q[3]);
 	html("</div>\n");
 
 	htmlf("<br>%d: Total commits<br><br>", total);
 
-	cgit_commit_link("label", "tooltip", "class", "branch", "5092128072e6dd21f8d9f25ceed2187167c1992a", ctx.qry.vpath, 0);
-
+	// cgit_commit_link("label", "tooltip", "class", "branch", "5092128072e6dd21f8d9f25ceed2187167c1992a", ctx.qry.vpath, 0);
 
 	html("</div>");
 }
