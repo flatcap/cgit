@@ -401,11 +401,12 @@ void cgit_show_calendar(void)
 
 	time(&time_finish);
 
-	struct tm t;
-	gmtime_r(&time_finish, &t);
-	t.tm_year--;
+	struct tm this_month;
+	gmtime_r(&time_finish, &this_month);
+	this_month.tm_year--;
 
-	time_start = timegm (&t);
+	time_start = timegm (&this_month);
+	this_month.tm_year++;
 
 	time_start  = ROUND_UP(time_start,  86400);
 	time_finish = ROUND_UP(time_finish, 86400);
@@ -423,7 +424,7 @@ void cgit_show_calendar(void)
 	// htmlf("q: %d, %d, %d, %d, %d<br>", q[0], q[1], q[2], q[3], q[4]);
 
 	const char *square = "&#9632";
-	// const char *space  = "&nbsp;";
+	const char *space  = "&nbsp;";
 
 	time_t next_time = time_start;
 	struct tm next_month;
@@ -434,6 +435,10 @@ void cgit_show_calendar(void)
 	struct tm work_month;
 	int start_month = next_month.tm_mon;
 
+	html("<div class=\"month\">\n");
+	html("<h1>&nbsp;</h1><span>S</span><br><span>M</span><br><span>T</span><br><span>W</span><br><span>T</span><br><span>F</span><br><span>S</span>\n");
+	html("</div>\n");
+
 	// int i;
 	// for (i = 0; i < days; i++) {
 	int moy;
@@ -442,6 +447,7 @@ void cgit_show_calendar(void)
 	for (moy = 0; moy < 13; moy++) {
 
 		htmlf("<div class='month'>\n");
+		//htmlf("<h1>%s<br>%d</h1>", months[(start_month+moy)%12], next_month.tm_year+1900);
 		htmlf("<h1>%s</h1>", months[(start_month+moy)%12]);
 
 		work_month = next_month;
@@ -456,39 +462,67 @@ void cgit_show_calendar(void)
 		next_time = timegm (&next_month);
 		gmtime_r (&next_time, &next_month);
 
+		int first_day = work_month.tm_wday;
 		int month_length = (next_time-work_time)/86400;
 
 		// htmlf ("%d-%02d-%02d (%d)<br>\n", 1900+work_month.tm_year, work_month.tm_mon+1, work_month.tm_mday, month_length);
 
 		// htmlf ("mday = %d\n", work_month.tm_mday);
 
-		int dom;
-		for (dom = 0; dom < month_length; dom++) {
+		// int dow = next_month.tm_wday;
+		// htmlf ("wday = %d<br>\n", work_month.tm_wday);
 
-			int class;
-			const char *shape = square;
-			int index = total_offset + dom;
-			if (index >= days) {
-				break;
+		// int cols = month_length;
+		// htmlf("c:%d:%d:%d<br>\n", cols, cols/7,cols%7);
+		// cols = (cols+6) / 7;
+		// htmlf("c:%d<br>\n", cols);
+
+		if ((work_month.tm_mon == this_month.tm_mon) && (work_month.tm_year == this_month.tm_year)) {
+			month_length = this_month.tm_mday;
+		}
+
+		int start = -first_day;
+		int end   = month_length - start;
+
+		int old_end = end;
+		end = (((end + 6) / 7) * 7);
+
+		int cols = end / 7;
+
+		if (end == old_end)
+			cols++;
+
+		int row;
+		for (row = 0; row < 7; row++) {
+			int col;
+			for (col = 0; col < cols; col++) {
+
+				int class;
+				const char *shape = square;
+				int j = 1+start + (col*7) + row;
+				// htmlf ("%d, ", j);
+				int index = j+total_offset - 2;
+				int count = array[index];
+
+				if ((j < 0) || (j > month_length) || ((j+total_offset) > days)) {
+					shape = space;
+					class = 0;
+				} else if (count > q[3]) {
+					class = 4;
+				} else if (count > q[2]) {
+					class = 3;
+				} else if (count > q[1]) {
+					class = 2;
+				} else if (count > 0) {
+					class = 1;
+				} else {
+					class = 0;
+				}
+
+				htmlf("<span title=\"%d %s %d\n%d commit%s\" class='b%d c%d'>%s</span>\n", j+work_month.tm_mday-1, months[(start_month+moy)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", moy%2, class, shape);
+
 			}
-
-			int count = array[index];
-			if (count > q[3]) {
-				class = 4;
-			} else if (count > q[2]) {
-				class = 3;
-			} else if (count > q[1]) {
-				class = 2;
-			} else if (count > 0) {
-				class = 1;
-			} else {
-				class = 0;
-			}
-
-			htmlf("<span title=\"%d %s %d\n%d commit%s\" class='b%d c%d'>%s</span>", dom+work_month.tm_mday, months[(start_month+moy)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", moy%2, class, shape);
-
-			if ((dom % 5) == 4)
-				html("<br>");
+			html("<br>\n");
 		}
 
 		total_offset += month_length;
