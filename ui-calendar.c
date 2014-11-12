@@ -3,6 +3,8 @@
 #include "html.h"
 #include "ui-shared.h"
 
+#define ROUND_UP(X,M)  (((X+M-1)/M)*M)
+
 // static int cmp_repos(const void *a, const void *b)
 int comp_int (int *a, int *b)
 {
@@ -22,6 +24,7 @@ void calc_quartiles (int array[], int members, int *quartiles)
 
 	qsort (copy, members, sizeof(int), (__compar_fn_t) &comp_int);
 
+	// htmlf ("members = %d<br>\n", members);
 	// int q;
 	// for (q = 0; q < members; q++) {
 	// 	htmlf ("%d, ", copy[q]);
@@ -38,19 +41,13 @@ void calc_quartiles (int array[], int members, int *quartiles)
 
 	// htmlf ("skip = %d<br>", skip);
 
-	if (skip == 0) {		// no data
-		quartiles[0] = 1;
-		quartiles[1] = 1;
-		quartiles[2] = 1;
-		quartiles[3] = 1;
-	} else {
-		int section = (members - skip) / 4;
+	int section = (members - skip) / 4;
 
-		quartiles[0] = copy[skip+(1*section)];
-		quartiles[1] = copy[skip+(2*section)];
-		quartiles[2] = copy[skip+(3*section)];
-		quartiles[3] = copy[members-1];
-	}
+	quartiles[0] = copy[0];
+	quartiles[1] = copy[skip+(1*section)];
+	quartiles[2] = copy[skip+(2*section)];
+	quartiles[3] = copy[skip+(3*section)];
+	quartiles[4] = copy[members-1];
 }
 
 void calc_streaks (int array[], int members, int *we, int* wd, int *cur)
@@ -61,6 +58,60 @@ void calc_streaks (int array[], int members, int *we, int* wd, int *cur)
 	*cur = 0;
 }
 
+int *get_commit_counts (time_t time_start, time_t time_finish)
+{
+	// --since=<date>, --after=<date>
+	// Show commits more recent than a specific date.
+
+	// --until=<date>, --before=<date>
+	// Show commits older than a specific date.
+
+	int days = ((time_finish - time_start) / 86400);
+	if ((days < 1) || (days > 1000)) {
+		return NULL;
+	}
+
+	int *array = xcalloc (days, sizeof(int));
+	if (!array)
+		return 0;
+
+	struct rev_info rev;
+	struct commit *commit;
+	const char *argv[] = {NULL, ctx.qry.head, NULL};
+	int argc = 3;
+	struct commitinfo *info;
+
+	char window[64];
+	snprintf (window, sizeof(window), "--after='%ld seconds' --before='%ld seconds'", time_start, time_finish);
+	argv[2] = xstrdup(window);
+
+	init_revisions(&rev, NULL);
+	rev.abbrev = DEFAULT_ABBREV;
+	rev.commit_format = CMIT_FMT_DEFAULT;
+	rev.max_parents = 1;
+	rev.verbose_header = 1;
+	rev.show_root_diff = 0;
+
+	setup_revisions(argc, argv, &rev, NULL);
+	prepare_revision_walk(&rev);
+
+	while ((commit = get_revision(&rev)) != NULL) {
+		info = cgit_parse_commit(commit);
+		int day = ((info->committer_date - time_start) / 86400);
+		if ((day >= 0) && (day < days)) {
+			array[day]++;
+		}
+
+		free_commit_buffer(commit);
+		free_commit_list(commit->parents);
+		commit->parents = NULL;
+		cgit_free_commitinfo(info);
+	}
+
+	return array;
+}
+
+#if 0
 void cgit_show_calendar(void)
 {
 	//html("<pre>");
@@ -95,10 +146,18 @@ void cgit_show_calendar(void)
 	setup_revisions(argc, argv, &rev, NULL);
 	prepare_revision_walk(&rev);
 	time_t now = 0;
-	time(&now);
-	int cc[53*7];
+	time(&now);		// need to round this down to midnight to stop commits changing day dependent on current time of day
+	now = (now/86400) * 86400;
+
+	time_t start_date = now - (86400 * 53 * 7);
+
+	fprintf (stderr, "start_date = %ld\n", start_date);
+
+	int cc[54*7];
 	memset (cc, 0, sizeof (cc));
 	int total = 0;
+	int over = 0;
+	int commits = 0;
 	while ((commit = get_revision(&rev)) != NULL) {
 		// fprintf (stderr, "sha: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n", commit->object.sha1[0], commit->object.sha1[1], commit->object.sha1[2], commit->object.sha1[3], commit->object.sha1[4], commit->object.sha1[5], commit->object.sha1[6], commit->object.sha1[7], commit->object.sha1[8], commit->object.sha1[9], commit->object.sha1[10], commit->object.sha1[11], commit->object.sha1[12], commit->object.sha1[13], commit->object.sha1[14], commit->object.sha1[15], commit->object.sha1[16], commit->object.sha1[17], commit->object.sha1[18], commit->object.sha1[19]);
 		info = cgit_parse_commit(commit);
@@ -106,14 +165,25 @@ void cgit_show_calendar(void)
 		// fprintf (stderr, "c date: %ld\n", info->committer_date);
 		// fprintf (stderr, "subject: %s\n", info->subject);
 		// fprintf (stderr, "msg: %s\n", info->msg);
-		int day = (now - info->author_date)/ 86400;
+		int day = (info->author_date - start_date) / 86400;
+		// int day = (info->committer_date - start_date) / 86400;
+		if ((day < 0) || (day >= (54*7))) {
+			// fprintf (stderr, "day = %d\n", day);
+			// fprintf (stderr, "date -d @%ld\n", info->author_date);
+			over++;
+			continue;
+		}
+
 		cc[day]++;
+		commits++;
 		total++;
 		free_commit_buffer(commit);
 		free_commit_list(commit->parents);
 		commit->parents = NULL;
 		cgit_free_commitinfo(info);
 	}
+	fprintf (stderr, "over = %d\n", over);
+	fprintf (stderr, "commits = %d\n", commits);
 
 	int q[4];
 	calc_quartiles (cc, sizeof(cc)/sizeof(int), q);
@@ -244,9 +314,11 @@ void cgit_show_calendar(void)
 			for (col = 0; col < cols; col++) {
 				int j = 1+start + (col*7) + row;
 				// htmlf ("%d, ", j);
-				int count = cc[371-(j+total_offset)];
+				int index = j+total_offset - 2;
+				int count = cc[index];
 				int class;
 				const char *shape = square;
+				// if ((index > 362) || (j < 1) || (j > month_length)) {
 				if ((j < 1) || (j > month_length)) {
 					class = 0;
 					shape = space;
@@ -270,7 +342,7 @@ void cgit_show_calendar(void)
 				// cgit_commit_link("X", title, NULL, ctx.qry.head, sha, ctx.qry.path, 0);
 				// html ("</span>");
 
-				htmlf("<span title=\"%d %s %d\n%d commit%s\" class='c%d'>%s</span>", j, months[(month_start+i)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", class, shape);
+				htmlf("<span title=\"%d %s %d\n%d commit%s\" class='b%d c%d'>%s</span>", j, months[(month_start+i)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", i%2, class, shape);
 				//html("</a>");
 			}
 			html("<br>");
@@ -313,5 +385,117 @@ void cgit_show_calendar(void)
 	// cgit_commit_link("label", "tooltip", "class", "branch", "5092128072e6dd21f8d9f25ceed2187167c1992a", ctx.qry.vpath, 0);
 
 	html("</div>");
+}
+
+#endif
+
+void cgit_show_calendar(void)
+{
+	static const char *months[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	};
+
+	time_t time_start  = 0;
+	time_t time_finish = 0;
+
+	time(&time_finish);
+
+	struct tm t;
+	gmtime_r(&time_finish, &t);
+	t.tm_year--;
+
+	time_start = timegm (&t);
+
+	time_start  = ROUND_UP(time_start,  86400);
+	time_finish = ROUND_UP(time_finish, 86400);
+	int days = ((time_finish - time_start) / 86400);
+
+	int *array = get_commit_counts(time_start, time_finish);
+	if (!array)
+		return;
+
+	// htmlf ("%ld, %ld (%ld)<br>\n", time_start, time_finish, (time_finish - time_start) / 86400);
+
+	int q[5];
+	calc_quartiles (array, days, q);
+
+	// htmlf("q: %d, %d, %d, %d, %d<br>", q[0], q[1], q[2], q[3], q[4]);
+
+	const char *square = "&#9632";
+	// const char *space  = "&nbsp;";
+
+	time_t next_time = time_start;
+	struct tm next_month;
+	gmtime_r(&next_time, &next_month);
+
+	// next_month.tm_mday = 1;
+
+	struct tm work_month;
+	int start_month = next_month.tm_mon;
+
+	// int i;
+	// for (i = 0; i < days; i++) {
+	int moy;
+	time_t work_time;
+	int total_offset = 0;
+	for (moy = 0; moy < 13; moy++) {
+
+		htmlf("<div class='month'>\n");
+		htmlf("<h1>%s</h1>", months[(start_month+moy)%12]);
+
+		work_month = next_month;
+		work_time  = next_time;
+		next_month.tm_mon++;
+		next_month.tm_mday = 1;
+		if (next_month.tm_mon > 11) {
+			next_month.tm_year++;
+			next_month.tm_mon = 0;
+		}
+
+		next_time = timegm (&next_month);
+		gmtime_r (&next_time, &next_month);
+
+		int month_length = (next_time-work_time)/86400;
+
+		// htmlf ("%d-%02d-%02d (%d)<br>\n", 1900+work_month.tm_year, work_month.tm_mon+1, work_month.tm_mday, month_length);
+
+		// htmlf ("mday = %d\n", work_month.tm_mday);
+
+		int dom;
+		for (dom = 0; dom < month_length; dom++) {
+
+			int class;
+			const char *shape = square;
+			int index = total_offset + dom;
+			if (index >= days) {
+				break;
+			}
+
+			int count = array[index];
+			if (count > q[3]) {
+				class = 4;
+			} else if (count > q[2]) {
+				class = 3;
+			} else if (count > q[1]) {
+				class = 2;
+			} else if (count > 0) {
+				class = 1;
+			} else {
+				class = 0;
+			}
+
+			htmlf("<span title=\"%d %s %d\n%d commit%s\" class='b%d c%d'>%s</span>", dom+work_month.tm_mday, months[(start_month+moy)%12], 1900+work_month.tm_year, count, (count!=1) ? "s" : "", moy%2, class, shape);
+
+			if ((dom % 5) == 4)
+				html("<br>");
+		}
+
+		total_offset += month_length;
+
+		html("</div>\n");
+	}
+
+	free(array);
 }
 
