@@ -960,9 +960,13 @@ void cgit_print_pageheader(void)
 					  ctx.qry.head);
 		html("</td><td class='form'>");
 		html("<form class='right' method='get' action='");
-		if (ctx.cfg.virtual_root)
-			html_url_path(cgit_fileurl(ctx.qry.repo, "log",
-						   ctx.qry.vpath, NULL));
+		if (ctx.cfg.virtual_root) {
+			char *url = cgit_fileurl(ctx.qry.repo, "log",
+						 ctx.qry.vpath, NULL);
+
+			html_url_path(url);
+			free (url);
+		}
 		html("'>\n");
 		cgit_add_hidden_formfields(1, 0, "log");
 		html("<select name='qt'>\n");
